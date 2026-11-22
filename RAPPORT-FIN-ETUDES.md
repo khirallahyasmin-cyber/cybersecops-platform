@@ -2,7 +2,7 @@
 
 ## Conception et réalisation d'une plateforme DevSecOps pour une application de catalogue
 
-- **Projet :** DevOps Catalog
+- **Projet :** DevSeCops Catalog
 - **Nature :**  rapport technique
 - **Filière / spécialité :** cybersécurité
 - **Réalisé par :** khirallah yasmine
