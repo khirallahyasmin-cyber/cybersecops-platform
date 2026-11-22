@@ -3,7 +3,7 @@
 ## Conception et réalisation d'une plateforme DevSecOps pour une application de catalogue
 
 - **Projet :** DevOps Catalog
-- **Nature :** projet de fin d'études — rapport technique
+- **Nature :*** rapport technique
 - **Établissement :** à compléter
 - **Filière / spécialité :** à compléter
 - **Réalisé par :** à compléter
