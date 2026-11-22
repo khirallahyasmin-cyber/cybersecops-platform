@@ -4,7 +4,6 @@
 
 - **Projet :** DevOps Catalog
 - **Nature :**  rapport technique
-- **Établissement :** à compléter
 - **Filière / spécialité :** cybersécurité
 - **Réalisé par :** khirallah yasmine
 
