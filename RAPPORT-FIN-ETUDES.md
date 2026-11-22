@@ -3,13 +3,11 @@
 ## Conception et réalisation d'une plateforme DevSecOps pour une application de catalogue
 
 - **Projet :** DevOps Catalog
-- **Nature :*** rapport technique
+- **Nature :**  rapport technique
 - **Établissement :** à compléter
-- **Filière / spécialité :** à compléter
-- **Réalisé par :** à compléter
-- **Encadrant académique :** à compléter
-- **Encadrant professionnel :** à compléter
-- **Année universitaire :** à compléter
+- **Filière / spécialité :** cybersécurité
+- **Réalisé par :** khirallah yasmine
+
 **Version du rapport :** 1.2 — 6 octobre 2026
 
 > Ce rapport décrit l'implémentation présente dans le dépôt. Le build #47 est conservé comme preuve historique d'une version antérieure; les modifications ultérieures sont distinguées et leurs validations sont rapportées séparément. Les éléments institutionnels de la page de garde sont laissés à compléter, car ils ne figurent pas dans le dépôt.
