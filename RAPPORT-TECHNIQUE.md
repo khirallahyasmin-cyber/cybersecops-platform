@@ -1,15 +1,16 @@
-# Rapport de fin d'études
+﻿# Rapport technique du projet
 
 ## Conception et réalisation d'une plateforme DevSecOps pour une application de catalogue
 
-- **Projet :** DevSeCops Catalog
-- **Nature :**  rapport technique
-- **Filière / spécialité :** cybersécurité
+- **Projet :** DevOps Catalog
+- **Nature :** projet technique de démonstration DevSecOps (ni PFE, ni stage, ni rapport de fin d'études)
+- **Périmètre :** laboratoire local reproductible (application, CI/CD, contrôles de sécurité, supervision)
+- **Domaine :** cybersécurité / DevSecOps
 - **Réalisé par :** khirallah yasmine
 
 **Version du rapport :** 1.2 — 6 octobre 2026
 
-> Ce rapport décrit l'implémentation présente dans le dépôt. Le build #47 est conservé comme preuve historique d'une version antérieure; les modifications ultérieures sont distinguées et leurs validations sont rapportées séparément. Les éléments institutionnels de la page de garde sont laissés à compléter, car ils ne figurent pas dans le dépôt.
+> Ce rapport décrit l'implémentation présente dans le dépôt. Le build #47 est conservé comme preuve historique d'une version antérieure; les modifications ultérieures sont distinguées et leurs validations sont rapportées séparément.
 
 ---
 
@@ -315,7 +316,7 @@ devops-platform/
 ├── setup.sh / up.sh / down.sh / status.sh
 ├── README.md
 ├── THREAT-MODEL.md
-└── RAPPORT-FIN-ETUDES.md
+└── RAPPORT-TECHNIQUE.md
 ```
 
 **Chemins à connaître pour la réalisation :**
@@ -875,3 +876,5 @@ Les fichiers suivants constituent les sources d'information et les preuves techn
 - `reports/sonarqube-issues.json`, `reports/sonarqube-hotspots.json` — résultats SonarQube.
 - `reports/trivy-backend.json`, `reports/trivy-frontend.json` — résultats Trivy.
 - `reports/zap-report.html`, `reports/zap-report.json` — résultats ZAP.
+
+
