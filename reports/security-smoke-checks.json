@@ -1,0 +1,9 @@
+{
+  "checks": [
+    {
+      "id": "security-smoke-tests",
+      "status": "passed",
+      "summary": "Les endpoints de santé et de produits répondent en HTTP 200 avec X-Content-Type-Options: nosniff."
+    }
+  ]
+}

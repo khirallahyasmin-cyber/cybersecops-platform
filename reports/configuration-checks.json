@@ -1,0 +1,24 @@
+{
+  "checks": [
+    {
+      "id": "acceptance-iac",
+      "status": "passed",
+      "summary": "La configuration Compose résolue contient les services applicatifs requis."
+    },
+    {
+      "id": "infrastructure-compliance",
+      "status": "passed",
+      "summary": "Compose vérifié : pas de mode host ni de conteneur privilégié pour l'application, MySQL non publié sur l'hôte et politiques de redémarrage présentes."
+    },
+    {
+      "id": "configuration-safety",
+      "status": "passed",
+      "summary": "Le fichier .env est ignoré par Git et exclu de l'archive locale Jenkins."
+    },
+    {
+      "id": "secrets-management",
+      "status": "passed",
+      "summary": "Le .env est ignoré par Git et exclu de l'archive de sources; les credentials CI passent par withCredentials. Jenkins local a accès au montage du projet et doit rester de confiance; aucun coffre cloud n'est revendiqué."
+    }
+  ]
+}

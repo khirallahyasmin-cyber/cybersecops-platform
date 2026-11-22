@@ -1,0 +1,4 @@
+.git
+.env
+backend/target
+README.md

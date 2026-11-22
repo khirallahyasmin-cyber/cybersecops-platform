@@ -1,0 +1,605 @@
+{\rtf1\ansi
+{\fonttbl{\f0 Aptos;}{\f1 Consolas;}}
+{\colortbl;\red23\green54\blue93;\red54\green95\blue145;}
+\viewkind4\widowctrl\lang1036\f0\fs21\
+\pard\sb2400\sa360\qc\b\cf1\fs36\
+Rapport technique \u8212? r\u233?alisation et fonctionnement du projet DevOps/DevSecOps\par
+
+\pard\sa120\f0\fs21\
+Explication de l\u8217?architecture, des fichiers, des classes, des contr\u244?les et du flux d\u8217?ex\u233?cution\par
+
+\pard\sa120\f0\fs21\
+Projet : devops-platform \u8212? catalogue de produits et cha\u238?ne DevSecOps\par
+
+\pard\sa120\f0\fs21\
+Langue : fran\u231?ais | Format : document Microsoft Word (.docx)\par
+
+\pard\sa120\f0\fs21\
+P\u233?rim\u232?tre : sources et configuration pr\u233?sentes dans le d\u233?p\u244?t au moment de la r\u233?daction\par
+
+\pard\sa120\f0\fs21\
+\page \par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+Comment lire ce rapport\par
+
+\pard\sa120\f0\fs21\
+Ce document d\u233?crit les responsabilit\u233?s et les interactions des fichiers, classes et principales fonctions du projet. Il explique les \u233?l\u233?ments de code par unit\u233? logique (classe, fonction, script ou configuration) : il ne traduit pas chaque mot-cl\u233? du langage Java ou Python, qui est expliqu\u233? par son contexte. Les chemins cit\u233?s sont relatifs \u224? la racine du d\u233?p\u244?t.\par
+
+\pard\sa120\f0\fs21\
+Les secrets locaux, notamment le contenu du fichier .env, ne sont ni lus ni reproduits. Les rapports g\u233?n\u233?r\u233?s, caches, d\u233?pendances t\u233?l\u233?charg\u233?es et fichiers compil\u233?s sont des r\u233?sultats d\u8217?ex\u233?cution, pas des sources \u224? maintenir. Le r\u233?pertoire security-fixtures contient les dossiers iac et sca, mais aucun fichier de fixture n\u8217?a \u233?t\u233? inventori\u233?.\par
+
+\pard\sa120\f0\fs21\
+Le projet est un laboratoire local d\u8217?apprentissage et d\u8217?int\u233?gration continue. Il ne doit pas \u234?tre expos\u233? comme une application de production sans authentification, TLS, gestion de privil\u232?ges et durcissement compl\u233?mentaires.\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+Sommaire\par
+
+\pard\sa120\f0\fs21\
+1. Objectif et vue d\u8217?ensemble\par
+
+\pard\sa120\f0\fs21\
+2. Architecture et parcours d\u8217?une requ\u234?te\par
+
+\pard\sa120\f0\fs21\
+3. D\u233?marrer, v\u233?rifier et arr\u234?ter le projet\par
+
+\pard\sa120\f0\fs21\
+4. Backend Java : fichiers, classes et API\par
+
+\pard\sa120\f0\fs21\
+5. Frontend et proxy HTTP\par
+
+\pard\sa120\f0\fs21\
+6. Docker Compose et configuration des services\par
+
+\pard\sa120\f0\fs21\
+7. Jenkins : d\u233?roulement r\u233?el du pipeline\par
+
+\pard\sa120\f0\fs21\
+8. Contr\u244?les, rapports et dashboard DevSecOps\par
+
+\pard\sa120\f0\fs21\
+9. Tests, r\u233?sultats et limites\par
+
+\pard\sa120\f0\fs21\
+10. Inventaire raisonn\u233? des fichiers\par
+
+\pard\sa120\f0\fs21\
+11. Glossaire\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+1. Objectif et vue d\u8217?ensemble\par
+
+\pard\sa120\f0\fs21\
+devops-platform r\u233?unit une application de catalogue CRUD et un laboratoire qui automatise sa construction, ses tests, ses analyses de s\u233?curit\u233?, son d\u233?ploiement local et son observation. Le catalogue est le sujet applicatif; Jenkins, SonarQube, Trivy, OWASP ZAP, Nexus, Prometheus et Grafana constituent les outils de livraison et de contr\u244?le.\par
+
+\pard\sa120\f0\fs21\
+Le parcours g\u233?n\u233?ral est le suivant : le d\u233?veloppeur pr\u233?pare des fichiers avec pre-commit et Gitleaks, valide le message de commit avec Commitizen, puis Jenkins r\u233?cup\u232?re les sources. Maven compile et teste l\u8217?API. SonarQube, Trivy et l\u8217?analyse IaC v\u233?rifient diff\u233?rents p\u233?rim\u232?tres. Docker construit les images, Compose d\u233?ploie l\u8217?application, des contr\u244?les HTTP/runtime v\u233?rifient le r\u233?sultat, Prometheus collecte les m\u233?triques, ZAP effectue un scan passif et le script de rapport rassemble les preuves.\par
+
+\pard\sa120\f0\fs21\
+La page HTML de DevSecOps n\u8217?invente pas de r\u233?sultats : elle agr\u232?ge les statuts enregistr\u233?s par le pipeline et les fichiers produits par les outils. \u171? \u201?tape pass\u233?e \u187? signifie que le crit\u232?re d\u8217?ex\u233?cution a \u233?t\u233? satisfait; cela ne signifie pas n\u233?cessairement \u171? aucune alerte \u187?. Une \u233?tape absente ou sans rapport ne constitue pas une preuve de s\u233?curit\u233?.\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+2. Architecture et parcours d\u8217?une requ\u234?te\par
+
+\pard\sa120\f0\fs21\
+Composants principaux :\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? Navigateur \u8594? frontend Nginx sur localhost:8081.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? Nginx sert frontend/index.html et relaie /api/ vers le backend Spring Boot.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? Backend sur localhost:8080 \u8594? MySQL sur le r\u233?seau priv\u233? Compose.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? Jenkins (localhost:8083) orchestre les \u233?tapes et utilise les conteneurs Docker.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? SonarQube (9000) analyse le code; Nexus (8082) peut h\u233?berger l\u8217?artefact Maven.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? Prometheus (9090) collecte /actuator/prometheus; Grafana (3000) utilise Prometheus comme datasource.\par
+
+\pard\sa120\f0\fs21\
+Une lecture de produit suit ce trajet : le navigateur envoie GET /api/products \u224? Nginx; le bloc location /api/ de frontend/nginx.conf transmet la requ\u234?te \u224? http://backend:8080/api/; ProductController appelle ProductService; le service d\u233?l\u232?gue la requ\u234?te SQL au ProductRepository; JdbcTemplate utilise la connexion configur\u233?e vers MySQL; le r\u233?sultat remonte sous forme de Product s\u233?rialis\u233? en JSON. La base et le backend communiquent par nom de service sur le r\u233?seau Docker, sans publier MySQL sur le port h\u244?te.\par
+
+\pard\sa120\f0\fs21\
+Les contr\u244?les ont des p\u233?rim\u232?tres diff\u233?rents. JUnit v\u233?rifie le comportement du backend; SonarQube examine le code Java; Trivy examine les images et la configuration selon les commandes du pipeline; ZAP observe les r\u233?ponses HTTP de l\u8217?API en fonctionnement; les scripts Python v\u233?rifient Compose, l\u8217?\u233?tat des conteneurs, l\u8217?API et la supervision. Aucun de ces outils, pris seul, ne prouve l\u8217?absence de vuln\u233?rabilit\u233?.\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+3. D\u233?marrer, v\u233?rifier et arr\u234?ter le projet\par
+
+\pard\sa120\f0\fs21\
+Pr\u233?requis document\u233?s : Ubuntu sous WSL2, Java 17, Maven, Git, Docker Engine et Docker Compose v2. La pile compl\u232?te (Jenkins, SonarQube, Nexus et supervision) est lourde; pr\u233?voir au moins 8 Go de m\u233?moire pour le laboratoire, et davantage si tous les services fonctionnent en m\u234?me temps.\par
+
+\pard\sa120\f0\fs21\
+Depuis PowerShell, ouvrir Ubuntu :\par
+
+\pard\li360\sa0\f1\fs18\
+wsl -d Ubuntu\par
+
+\pard\sa120\f0\fs21\
+Puis, dans le terminal Ubuntu :\par
+
+\pard\li360\sa0\f1\fs18\
+cd "/mnt/d/5NIDS/Labs Cybersecurity and Coding/DevOps_Project/devops-platform"\par
+
+\pard\li360\sa0\f1\fs18\
+bash ./setup.sh --all\par
+
+\pard\li360\sa0\f1\fs18\
+bash ./status.sh\par
+
+\pard\sa120\f0\fs21\
+Profils disponibles : bash ./setup.sh d\u233?marre l\u8217?application et MySQL; --tools ajoute Jenkins, SonarQube et Nexus; --monitoring ajoute Prometheus et Grafana; --all active les deux profils. setup.sh v\u233?rifie Docker/Compose, cr\u233?e .env \u224? partir de .env.example s\u8217?il manque, valide la configuration Compose, construit et d\u233?marre les services en attendant leur disponibilit\u233?. Les valeurs par d\u233?faut sont r\u233?serv\u233?es au d\u233?veloppement local; remplacer les mots de passe avant tout usage partag\u233?.\par
+
+\pard\sa120\f0\fs21\
+V\u233?rifications manuelles utiles :\par
+
+\pard\li360\sa0\f1\fs18\
+curl --fail http://localhost:8080/api/health\par
+
+\pard\li360\sa0\f1\fs18\
+docker compose ps\par
+
+\pard\li360\sa0\f1\fs18\
+docker compose logs -f backend\par
+
+\pard\sa120\f0\fs21\
+Arr\u234?t normal :\par
+
+\pard\li360\sa0\f1\fs18\
+bash ./down.sh\par
+
+\pard\sa120\f0\fs21\
+down.sh arr\u234?te les profils Compose et conserve les volumes nomm\u233?s. Cette conservation pr\u233?serve les donn\u233?es de MySQL et des outils entre deux d\u233?marrages. La commande docker compose down -v supprime les volumes et les donn\u233?es persistantes : elle est destructive et ne doit \u234?tre utilis\u233?e que si leur suppression est voulue.\par
+
+\pard\sa120\f0\fs21\
+Pour tester seulement le backend, depuis backend/ :\par
+
+\pard\li360\sa0\f1\fs18\
+mvn -B clean verify\par
+
+\pard\sa120\f0\fs21\
+Cette commande compile, lance les tests, ex\u233?cute les phases Maven de v\u233?rification et produit les rapports de tests/couverture ainsi que le JAR dans backend/target/.\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+4. Backend Java : fichiers, classes et API\par
+
+\pard\sa120\f0\fs21\
+backend/pom.xml \u8212? D\u233?crit Maven : coordonn\u233?es du projet, parent Spring Boot, Java 17, versions forc\u233?es de Jackson/Tomcat, d\u233?pendances web, Actuator, Micrometer Prometheus, validation, JDBC, connecteur MySQL, H2 et tests. Le plugin Spring Boot empaquette le JAR; JaCoCo pr\u233?pare l\u8217?agent de couverture et produit son rapport \u224? verify. distributionManagement indique le d\u233?p\u244?t Nexus de releases utilis\u233? lors d\u8217?une publication configur\u233?e.\par
+
+\pard\sa120\f0\fs21\
+backend/Dockerfile \u8212? Construction en deux \u233?tapes. Maven/Temurin 17 compile le JAR; une image JRE plus petite ex\u233?cute ensuite le paquet. curl sert aux healthchecks. L\u8217?utilisateur syst\u232?me app (UID 10001) ex\u233?cute le processus au lieu de root.\par
+
+\pard\sa120\f0\fs21\
+backend/src/main/java/com/example/devops/Application.java \u8212? Point d\u8217?entr\u233?e Spring Boot. main transmet Application.class \u224? SpringApplication.run; l\u8217?annotation SpringBootApplication active la configuration automatique et la d\u233?couverte des composants.\par
+
+\pard\sa120\f0\fs21\
+ApiController.java \u8212? Expose GET /api/health et retourne un objet de statut de l\u8217?API, distinct des probes techniques /actuator/health.\par
+
+\pard\sa120\f0\fs21\
+Product.java \u8212? Record Java repr\u233?sentant un produit en sortie : id, nom, description, prix d\u233?cimal et stock. Le type BigDecimal \u233?vite les impr\u233?cisions binaires d\u8217?un float pour les montants.\par
+
+\pard\sa120\f0\fs21\
+ProductRequest.java \u8212? Record de l\u8217?entr\u233?e JSON create/update. Les annotations de validation fixent des contraintes sur les champs; @Valid dans le contr\u244?leur d\u233?clenche leur application avant le traitement m\u233?tier.\par
+
+\pard\sa120\f0\fs21\
+ProductController.java \u8212? Couche HTTP REST sous /api/products. findAll liste les produits; findById lit un identifiant; create valide la requ\u234?te et renvoie le produit cr\u233?\u233? avec un statut de cr\u233?ation; update modifie un produit; delete le supprime et renvoie une r\u233?ponse sans corps. Cette classe traduit HTTP vers les appels de service et ne porte pas les requ\u234?tes SQL.\par
+
+\pard\sa120\f0\fs21\
+ProductService.java \u8212? Couche m\u233?tier entre contr\u244?leur et repository. Elle centralise les op\u233?rations CRUD et transforme l\u8217?absence d\u8217?un produit lors d\u8217?une lecture/modification/suppression en ProductNotFoundException.\par
+
+\pard\sa120\f0\fs21\
+ProductRepository.java \u8212? Acc\u232?s aux donn\u233?es avec JdbcTemplate. Il ex\u233?cute les lectures et \u233?critures SQL et utilise des param\u232?tres pr\u233?par\u233?s pour les valeurs fournies par le client; celles-ci sont donc des donn\u233?es, pas du code SQL. update et delete communiquent l\u8217?absence de ligne au service via un r\u233?sultat explicite.\par
+
+\pard\sa120\f0\fs21\
+ProductNotFoundException.java \u8212? Exception m\u233?tier sp\u233?cialis\u233?e, cr\u233?\u233?e \u224? partir de l\u8217?identifiant absent; le handler commun la convertit en r\u233?ponse HTTP coh\u233?rente.\par
+
+\pard\sa120\f0\fs21\
+ApiExceptionHandler.java \u8212? Advice Spring global. Il transforme l\u8217?exception \u171? produit absent \u187? et les erreurs de validation des param\u232?tres en r\u233?ponses HTTP/JSON structur\u233?es au lieu de laisser appara\u238?tre une erreur interne g\u233?n\u233?rique.\par
+
+\pard\sa120\f0\fs21\
+SecurityHeadersFilter.java \u8212? Filtre HTTP qui ajoute les en-t\u234?tes de s\u233?curit\u233? configur\u233?s pour les r\u233?ponses normales. Il agit transversalement sur la r\u233?ponse, sans obliger chaque m\u233?thode du contr\u244?leur \u224? r\u233?p\u233?ter ces en-t\u234?tes.\par
+
+\pard\sa120\f0\fs21\
+SecurityDemoController.java \u8212? Endpoints de test explicitement activ\u233?s par configuration. weakHash d\u233?montre un usage faible de MD5 et une politique CORS permissive; weakHeaders pr\u233?sente une page de test o\u249? des en-t\u234?tes de protection navigateur sont volontairement absents/faibles. Cette surface est destin\u233?e \u224? l\u8217?analyse locale ZAP, non \u224? une utilisation m\u233?tier. L\u8217?activation du mode d\u233?mo doit rester contr\u244?l\u233?e et la publication Docker est \u233?vit\u233?e quand ce mode est actif.\par
+
+\pard\sa120\f0\fs21\
+backend/src/main/resources/application.properties \u8212? Configuration runtime Spring, datasource et Actuator. Les variables d\u8217?environnement fournies par Compose configurent la connexion MySQL; les endpoints health/readiness et prometheus permettent les probes et la collecte des m\u233?triques.\par
+
+\pard\sa120\f0\fs21\
+backend/src/main/resources/schema.sql \u8212? DDL idempotent CREATE TABLE IF NOT EXISTS products : identifiant auto-incr\u233?ment\u233?, nom, description, prix et stock. MySQL initialise le sch\u233?ma au d\u233?marrage selon la configuration Spring.\par
+
+\pard\sa120\f0\fs21\
+backend/src/test/resources/application-test.properties \u8212? Remplace la base runtime par H2 en m\u233?moire et utilise le mode de compatibilit\u233? MySQL; les tests n\u8217?\u233?crivent donc pas dans la base persistante du laboratoire.\par
+
+\pard\sa120\f0\fs21\
+backend/src/test/java/com/example/devops/ProductControllerTest.java \u8212? Tests d\u8217?int\u233?gration MVC : endpoints de s\u233?curit\u233? d\u233?mo et headers; CRUD; rejet des donn\u233?es invalides et des identifiants inconnus; v\u233?rification qu\u8217?une entr\u233?e ressemblant \u224? du SQL reste une donn\u233?e; pr\u233?sence d\u8217?un en-t\u234?te de protection; endpoint de m\u233?triques. Ils testent l\u8217?application HTTP dans un contexte isol\u233?, et non les versions finales des images.\par
+
+\pard\sa120\f0\fs21\
+Contrat API utile : GET /api/products (liste), GET /api/products/\{id\} (lecture), POST /api/products (cr\u233?ation JSON), PUT /api/products/\{id\} (mise \u224? jour), DELETE /api/products/\{id\} (suppression), GET /api/health (statut applicatif), GET /actuator/health et /actuator/prometheus (sant\u233? technique et m\u233?triques).\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+5. Frontend et proxy HTTP\par
+
+\pard\sa120\f0\fs21\
+frontend/index.html \u8212? Application navigateur sans framework : structure HTML, pr\u233?sentation et JavaScript de l\u8217?\u233?cran catalogue. Elle appelle l\u8217?API sous /api, ce qui lui permet de rester sur la m\u234?me origine que Nginx; les fonctions de chargement et d\u8217?actions CRUD convertissent les r\u233?ponses JSON en \u233?l\u233?ments affich\u233?s.\par
+
+\pard\sa120\f0\fs21\
+frontend/nginx.conf \u8212? \u201?coute sur le port 8080 \u224? l\u8217?int\u233?rieur du conteneur, sert les fichiers statiques et relaie /api/ au service backend. Les en-t\u234?tes Host et X-Real-IP sont transmis. Le port publi\u233? c\u244?t\u233? machine est 8081 et limit\u233? \u224? l\u8217?interface loopback 127.0.0.1 dans Compose.\par
+
+\pard\sa120\f0\fs21\
+frontend/Dockerfile \u8212? Part d\u8217?une image Nginx non privil\u233?gi\u233?e, met \u224? jour ses paquets, copie la page et la configuration puis ex\u233?cute Nginx sous l\u8217?utilisateur nginx. L\u8217?image expose le port interne 8080.\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+6. Docker Compose et configuration des services\par
+
+\pard\sa120\f0\fs21\
+docker-compose.yml \u8212? Source de v\u233?rit\u233? de l\u8217?environnement local. Il d\u233?clare MySQL, backend, frontend et les profils optionnels devops et monitoring. Les healthchecks imposent l\u8217?ordre de d\u233?marrage; les ports frontend/backend sont li\u233?s \u224? 127.0.0.1; les r\u233?seaux Compose relient les services; les volumes nomm\u233?s conservent les donn\u233?es. Le profil devops ajoute PostgreSQL/SonarQube, Nexus et Jenkins; monitoring ajoute Prometheus et Grafana. Jenkins acc\u232?de au socket Docker pour construire/d\u233?marrer les conteneurs et monte le projet dans /workspace en lecture seule : c\u8217?est un privil\u232?ge \u233?lev\u233?, adapt\u233? au labo de confiance seulement.\par
+
+\pard\sa120\f0\fs21\
+.env.example \u8212? Gabarit des param\u232?tres locaux (ports, identifiants de d\u233?veloppement, options des services); il sert \u224? cr\u233?er .env. Ses valeurs d\u8217?exemple ne sont pas des secrets s\u251?rs. Le fichier .env local n\u8217?est pas d\u233?crit ni inclus dans ce rapport.\par
+
+\pard\sa120\f0\fs21\
+.gitignore \u8212? Exclut le fichier .env et les sorties Maven target des commits.\par
+
+\pard\sa120\f0\fs21\
+.dockerignore \u8212? R\u233?duit le contexte de construction en excluant notamment .git, .env, target et README.\par
+
+\pard\sa120\f0\fs21\
+.pre-commit-config.yaml \u8212? D\u233?clare les hooks de pr\u233?-commit, notamment contr\u244?les de format/fichiers, d\u233?tection Gitleaks et validation du message Conventional Commits avec Commitizen selon le hook-stage concern\u233?.\par
+
+\pard\sa120\f0\fs21\
+pyproject.toml \u8212? Configure Commitizen avec l\u8217?adaptateur Conventional Commits; le commit attend une structure comprenant type, port\u233?e facultative et description.\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+7. Jenkins : d\u233?roulement r\u233?el du pipeline\par
+
+\pard\sa120\f0\fs21\
+Jenkinsfile \u8212? Pipeline d\u233?claratif ex\u233?cutable. Les param\u232?tres d\u233?finissent le mode source locale ou SCM, le message \u224? valider, le mode d\u233?mo de s\u233?curit\u233?, Sonar, les publications Nexus/Docker et les notifications. Les identifiants sont attendus dans les Credentials Jenkins, pas cod\u233?s dans le d\u233?p\u244?t.\par
+
+\pard\sa120\f0\fs21\
+Stages dans l\u8217?ordre :\par
+
+\pard\sa120\f0\fs21\
+1. Declarative: Tool Install \u8212? v\u233?rifie Java, Maven, Git, pre-commit, Trivy, Docker/Compose, curl et Python.\par
+
+\pard\sa120\f0\fs21\
+2. Getting Project from Git \u8212? copie le dossier /workspace en mode local, en excluant .env, .git, target et rapports; sinon checkout SCM.\par
+
+\pard\sa120\f0\fs21\
+3. Initialize DevSecOps report \u8212? nettoie les preuves concern\u233?es puis initialise l\u8217?\u233?tat du rapport.\par
+
+\pard\sa120\f0\fs21\
+4. Pre-commit checks \u8212? ex\u233?cute les hooks sur tous les fichiers et journalise le r\u233?sultat.\par
+
+\pard\sa120\f0\fs21\
+5. Gitleaks secrets scan \u8212? lance le hook d\u233?di\u233?; conserve un r\u233?sum\u233? sans diffuser la sortie brute susceptible de r\u233?v\u233?ler un secret.\par
+
+\pard\sa120\f0\fs21\
+6. Commit message validation \u8212? valide COMMIT_MESSAGE en mode local ou le dernier message Git en mode SCM.\par
+
+\pard\sa120\f0\fs21\
+7. Cleaning the project \u8212? nettoie le contexte et les artefacts pr\u233?c\u233?dents du backend.\par
+
+\pard\sa120\f0\fs21\
+8. Artifact construction \u8212? construit le JAR Maven en ex\u233?cutant le cycle de v\u233?rification configur\u233?.\par
+
+\pard\sa120\f0\fs21\
+9. Unit Tests \u8212? ex\u233?cute les tests et garde le rapport JUnit comme preuve.\par
+
+\pard\sa120\f0\fs21\
+10. Dependency update report \u8212? collecte/pr\u233?sente l\u8217?\u233?tat du contr\u244?le de mises \u224? jour pr\u233?vu par le pipeline.\par
+
+\pard\sa120\f0\fs21\
+11. Infrastructure as Code scan \u8212? Trivy Config examine la configuration avec les s\u233?v\u233?rit\u233?s HIGH et CRITICAL.\par
+
+\pard\sa120\f0\fs21\
+12. Code Quality Check via SonarQube \u8212? optionnel, n\u233?cessite sonar-token; ex\u233?cute l\u8217?analyse Maven et r\u233?cup\u232?re les issues/hotspots.\par
+
+\pard\sa120\f0\fs21\
+13. Building our images \u8212? construit les images backend et frontend.\par
+
+\pard\sa120\f0\fs21\
+14. Resolved Compose and local safeguards \u8212? r\u233?sout Compose puis v\u233?rifie privil\u232?ges, exposition r\u233?seau, param\u232?tres et protections locales.\par
+
+\pard\sa120\f0\fs21\
+15. Trivy vulnerability scan \u8212? analyse les images backend/frontend sur LOW \u224? CRITICAL, sauvegarde le JSON et calcule les compteurs; les vuln\u233?rabilit\u233?s HIGH/CRITICAL corrigibles sont la politique de blocage, avec poursuite contr\u244?l\u233?e des autres scans pour recueillir les preuves.\par
+
+\pard\sa120\f0\fs21\
+16. Publish to Nexus \u8212? publication Maven optionnelle, conditionn\u233?e \u224? la configuration du serveur et de ses credentials.\par
+
+\pard\sa120\f0\fs21\
+17. Publish Docker images \u8212? publication optionnelle avec credentials et chemin de d\u233?p\u244?t Docker Hub; ne pas l\u8217?activer avec le mode s\u233?curit\u233? d\u233?mo.\par
+
+\pard\sa120\f0\fs21\
+18. Deploy our image \u8212? d\u233?marre MySQL/backend/frontend, attend les probes et interroge health/products; v\u233?rifie aussi les routes d\u233?mo si activ\u233?es.\par
+
+\pard\sa120\f0\fs21\
+19. Infrastructure runtime checks \u8212? inspecte sant\u233?, \u233?tat, privil\u232?ges et utilisateur effectif des conteneurs.\par
+
+\pard\sa120\f0\fs21\
+20. Post-deployment security smoke tests \u8212? contr\u244?le les routes et protections de s\u233?curit\u233? de l\u8217?API en fonctionnement.\par
+
+\pard\sa120\f0\fs21\
+21. Controlled backend recovery test \u8212? red\u233?marre le backend et v\u233?rifie son retour \u224? l\u8217?\u233?tat readiness.\par
+
+\pard\sa120\f0\fs21\
+22. Continuous monitoring verification \u8212? d\u233?marre Prometheus/Grafana et v\u233?rifie cible Prometheus et endpoint de sant\u233? Grafana.\par
+
+\pard\sa120\f0\fs21\
+23. ZAP DAST acceptance scan \u8212? lance ZAP Baseline passif sur la route d\u233?mo, ou sur les produits si mode d\u233?mo d\u233?sactiv\u233?; produit HTML/JSON.\par
+
+\pard\sa120\f0\fs21\
+24. Email verification \u8212? \u233?tape de notification conditionn\u233?e \u224? l\u8217?adresse et \u224? la configuration SMTP.\par
+
+\pard\sa120\f0\fs21\
+Les blocs post enregistrent les r\u233?sultats d\u8217?une \u233?tape en succ\u232?s ou \u233?chec. La section post globale produit/pr\u233?sente les preuves disponibles et archive les rapports, y compris lorsque le pipeline \u233?choue. L\u8217?archivage permet d\u8217?ouvrir le d\u233?tail du scanner ayant \u233?mis un constat. \u171? MEDIUM/LOW informatif \u187? ne doit pas \u234?tre confondu avec \u171? scan absent \u187?.\par
+
+\pard\sa120\f0\fs21\
+jenkins/Dockerfile \u8212? Image personnalis\u233?e du contr\u244?leur Jenkins et outils n\u233?cessaires aux \u233?tapes locales (Java/Maven, Git, Python, Docker client/Compose, Trivy, pr\u233?-commit et d\u233?pendances associ\u233?es).\par
+
+\pard\sa120\f0\fs21\
+jenkins/init.groovy.d/security.groovy \u8212? Au premier d\u233?marrage, configure un realm local, l\u8217?utilisateur admin fourni par variables d\u8217?environnement et une politique qui interdit la lecture anonyme; les variables doivent venir de la configuration locale/credentials.\par
+
+\pard\sa120\f0\fs21\
+jenkins/init.groovy.d/zz-pipeline.groovy \u8212? Cr\u233?e ou actualise le job devops-catalog depuis /workspace/Jenkinsfile; l\u232?ve une erreur explicite si le fichier manque et peut planifier le premier build.\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+8. Contr\u244?les, rapports et dashboard DevSecOps\par
+
+\pard\sa120\f0\fs21\
+devsecops_checks.py \u8212? Outil CLI de v\u233?rification :\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? check normalise le statut, l\u8217?identifiant et le r\u233?sum\u233? d\u8217?un contr\u244?le.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? inspect_compose_config examine la configuration r\u233?solue, l\u8217?exposition des ports, le mode privil\u233?gi\u233?, le r\u233?seau et la pr\u233?sence des protections.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? inspect_runtime v\u233?rifie conteneurs, healthchecks, utilisateur non-root du backend et durcissement attendu.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? fetch_json communique avec des endpoints HTTP JSON et signale les r\u233?ponses/erreurs.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? inspect_monitoring attend les cibles Prometheus et Grafana.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? inspect_security_smoke v\u233?rifie les r\u233?ponses HTTP et les headers de s\u233?curit\u233?.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? write_report s\u233?rialise les r\u233?sultats JSON; main choisit la sous-commande, collecte les donn\u233?es et retourne un code adapt\u233? au pipeline.\par
+
+\pard\sa120\f0\fs21\
+devsecops_report.py \u8212? Fabrique le rapport de s\u233?curit\u233? :\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? STATUS_LABELS, PHASES et CONTROLS d\u233?finissent vocabulaire, phases et contr\u244?les r\u233?ellement pr\u233?sent\u233?s; CONTROL_DESCRIPTIONS et REMEDIATIONS renseignent leur explication et les pistes de correction.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? now produit l\u8217?horodatage; public_build_url construit les liens destin\u233?s \u224? l\u8217?utilisateur.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? load_results et write_results lisent/\u233?crivent le document JSON de r\u233?sultats.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? redact_sensitive_text masque les motifs sensibles avant affichage.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? initialize cr\u233?e l\u8217?\u233?tat initial; record ajoute un contr\u244?le; record_check_report convertit un rapport de v\u233?rification en preuves.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? artifact_problem v\u233?rifie la pr\u233?sence et la lisibilit\u233? d\u8217?une preuve.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? item_artifacts, _has_artifact et _load_json_report rattachent les artefacts et pars\u232?nt les rapports JSON.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? control_evidence associe chaque contr\u244?le aux \u233?l\u233?ments de preuve appropri\u233?s.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? _archived_artifact_url, safe_link, artifact_link et artifact_links produisent des liens prudents vers les artefacts.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? load_vulnerabilities extrait et normalise les constats des rapports r\u233?els des outils.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? generate compose le HTML et le CSS du dashboard; main expose les sous-commandes \u224? Jenkins.\par
+
+\pard\sa120\f0\fs21\
+sonarqube_report.py \u8212? Client SonarQube d\u233?di\u233?. fetch_all parcourt toutes les pages API; download collecte issues et hotspots du projet puis les \u233?crit en JSON; main valide les param\u232?tres CLI. Le jeton est fourni par l\u8217?environnement Jenkins, non ajout\u233? aux fichiers de sortie.\par
+
+\pard\sa120\f0\fs21\
+Rapports g\u233?n\u233?r\u233?s sous reports/ \u8212? Les JSON Trivy, SonarQube, checks, r\u233?sultats agr\u233?g\u233?s, logs pre-commit/Maven/ZAP et fichiers HTML/CSS sont des preuves par ex\u233?cution. La phase initiale de Jenkins nettoie des fichiers cibl\u233?s pour \u233?viter de confondre une nouvelle ex\u233?cution avec un ancien build. Ne pas modifier ces r\u233?sultats \u224? la main pour repr\u233?senter un scan.\par
+
+\pard\sa120\f0\fs21\
+reports/report-views/ \u8212? Pages HTML d\u8217?affichage par outil (Commitizen, pre-commit, checks, Sonar, Trivy, ZAP) et feuille de style commune. Elles rendent navigables les preuves archiv\u233?es.\par
+
+\pard\sa120\f0\fs21\
+zap-reports/ \u8212? Espace de sorties ZAP local si une ex\u233?cution y d\u233?pose des artefacts; distinguer ces sorties des sources et comparer toujours leur build/p\u233?riode de production.\par
+
+\pard\sa120\f0\fs21\
+Les dossiers security-fixtures/iac et security-fixtures/sca existent, mais sont vides dans l\u8217?inventaire effectu\u233?; ils ne constituent donc pas un catalogue de r\u233?sultats \u224? int\u233?grer au dashboard.\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+9. Tests, r\u233?sultats et limites\par
+
+\pard\sa120\f0\fs21\
+Les tests Python sous tests/ couvrent les contr\u244?les Compose/runtime/monitoring, la g\u233?n\u233?ration et l\u8217?int\u233?grit\u233? des rapports, l\u8217?extraction SonarQube, et les cas historiques associ\u233?s aux fixtures. Les tests emploient unittest, fichiers temporaires et mocks HTTP : ils v\u233?rifient la logique des scripts sans appeler les services externes \u224? chaque cas.\par
+
+\pard\sa120\f0\fs21\
+tests/test_devsecops_checks.py \u8212? V\u233?rifie les protections Compose, l\u8217?\u233?chec en cas de conteneur privil\u233?gi\u233? ou port public, le runtime non-root/sant\u233? et la v\u233?rification Prometheus/Grafana.\par
+
+\pard\sa120\f0\fs21\
+tests/test_devsecops_report.py \u8212? V\u233?rifie l\u8217?\u233?tat du rapport, les preuves li\u233?es aux artefacts, les findings et les liens/sorties HTML.\par
+
+\pard\sa120\f0\fs21\
+tests/test_sonarqube_report.py \u8212? V\u233?rifie la r\u233?cup\u233?ration pagin\u233?e et les r\u233?ponses API contr\u244?l\u233?es du collecteur SonarQube.\par
+
+\pard\sa120\f0\fs21\
+backend/src/test/.../ProductControllerTest.java couvre CRUD, validation, erreurs, SQL-like comme donn\u233?e, headers, m\u233?triques et mode de d\u233?mo.\par
+
+\pard\sa120\f0\fs21\
+Historique de validation rapport\u233? dans le contexte de travail ant\u233?rieur : Maven clean verify a r\u233?ussi avec 7 tests Java; les tests Python ont r\u233?ussi avec 26 cas; un build Jenkins #79 a \u233?t\u233? indiqu\u233? SUCCESS, avec constats ZAP MEDIUM/LOW et un finding Trivy MEDIUM sans HIGH/CRITICAL dans les images de ce build. Ces chiffres d\u233?crivent une ex\u233?cution historique et son p\u233?rim\u232?tre, pas un nouveau scan lanc\u233? pendant la cr\u233?ation de ce document ni une garantie sur un futur commit. Relancer le pipeline pour obtenir une preuve courante.\par
+
+\pard\sa120\f0\fs21\
+Limites connues \u224? prendre en compte : aucune authentification m\u233?tier de catalogue; HTTP local plut\u244?t que TLS; acc\u232?s Jenkins au socket Docker conf\u233?rant un pouvoir \u233?lev\u233?; valeurs d\u8217?exemple r\u233?serv\u233?es \u224? une machine locale; ZAP Baseline est passif; Trivy et SonarQube ont des p\u233?rim\u232?tres/r\u232?gles d\u233?finis; donn\u233?es persistantes d\u233?pendantes des volumes Docker. Le mode de d\u233?monstration cr\u233?e expr\u232?s des r\u233?ponses faibles pour qu\u8217?un scanner les d\u233?tecte; ne pas l\u8217?activer sur un syst\u232?me expos\u233? ou lors d\u8217?une publication.\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+10. Inventaire raisonn\u233? des fichiers\par
+
+\pard\sa120\f0\fs21\
+Racine du projet :\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? Jenkinsfile : pipeline CI/CD et r\u232?gles de publication.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? docker-compose.yml : topologie, ports, profils, variables, sant\u233? et volumes.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? devsecops_checks.py, devsecops_report.py, sonarqube_report.py : contr\u244?le, agr\u233?gation et collecte de rapports.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? setup.sh, up.sh, down.sh, status.sh : d\u233?marrage, \u233?tat et arr\u234?t local. setup.sh g\u232?re les profils; up.sh lance l\u8217?application de base; down.sh conserve les volumes; status.sh montre Compose et interroge l\u8217?API.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? .pre-commit-config.yaml et pyproject.toml : hooks de contr\u244?le et configuration Commitizen.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? .gitignore, .dockerignore : exclusions Git et Docker.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? .env.example : mod\u232?le de variables locales; .env r\u233?el est volontairement exclu du pr\u233?sent document.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? README.md : d\u233?marrage rapide, pr\u233?requis, URLs et commandes.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? COURS-DEVOPS-DEBUTANT.md : cours structur\u233? sur le cycle DevOps, les outils et l\u8217?exploitation.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? RAPPORT-FIN-ETUDES.md : rapport acad\u233?mique, architecture, mise en \u339?uvre et limites.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? THREAT-MODEL.md : menaces STRIDE, fronti\u232?re de confiance et mitigations du laboratoire.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? OFFLINE-PACKAGE.md : explique les limites de l\u8217?archive t\u233?l\u233?chargeable et pourquoi les images Docker ne sont pas incluses.\par
+
+\pard\sa120\f0\fs21\
+backend/ :\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? Dockerfile et pom.xml : construction multi-\u233?tapes, d\u233?pendances, tests, empaquetage et publication Maven.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? src/main/java/com/example/devops/ : Application, contr\u244?leurs, DTO/mod\u232?le, service, repository, exceptions et filtre HTTP expliqu\u233?s au chapitre 4.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? src/main/resources/application.properties : configuration d\u8217?ex\u233?cution.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? src/main/resources/schema.sql : structure de la table products.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? src/test/java/.../ProductControllerTest.java : tests web d\u8217?int\u233?gration.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? src/test/resources/application-test.properties : datasource H2 isol\u233?.\par
+
+\pard\sa120\f0\fs21\
+frontend/ :\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? Dockerfile : image Nginx non-root et fichiers distribu\u233?s.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? index.html : interface cliente du catalogue.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? nginx.conf : serveur statique et reverse proxy API.\par
+
+\pard\sa120\f0\fs21\
+jenkins/ :\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? Dockerfile : contr\u244?leur Jenkins pr\u233?configur\u233? avec les outils requis.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? init.groovy.d/security.groovy : authentification/autorisation initiales.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? init.groovy.d/zz-pipeline.groovy : cr\u233?ation et mise \u224? jour du job pipeline.\par
+
+\pard\sa120\f0\fs21\
+monitoring/ :\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? prometheus/Dockerfile : image/configuration de Prometheus.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? prometheus/prometheus.yml : fr\u233?quence et cible Actuator backend.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? grafana/Dockerfile : image/configuration Grafana.\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? grafana/provisioning/datasources/prometheus.yml : datasource Prometheus d\u233?clar\u233?e automatiquement.\par
+
+\pard\sa120\f0\fs21\
+tests/ :\par
+
+\pard\li360\fi-180\sa60\f0\fs21\
+\u8226? test_devsecops_checks.py, test_devsecops_report.py, test_sonarqube_report.py : tests unitaires des outils auxiliaires Python.\par
+
+\pard\sa120\f0\fs21\
+Ne sont pas des sources \u224? documenter comme du code m\u233?tier : .env local, __pycache__, backend/target, les rapports/r\u233?sultats d\u8217?ex\u233?cution, images Docker et volumes. Ils sont soit locaux/sensibles, soit g\u233?n\u233?r\u233?s et reproductibles.\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+11. Glossaire\par
+
+\pard\sa120\f0\fs21\
+API \u8212? contrat HTTP/JSON utilis\u233? par le navigateur et les autres clients.\par
+
+\pard\sa120\f0\fs21\
+CI/CD \u8212? int\u233?gration continue puis livraison/d\u233?ploiement automatis\u233?s.\par
+
+\pard\sa120\f0\fs21\
+DAST \u8212? analyse d\u8217?une application en fonctionnement; ici le contr\u244?le ZAP Baseline est passif.\par
+
+\pard\sa120\f0\fs21\
+Finding \u8212? alerte ou constat issu d\u8217?un scanner.\par
+
+\pard\sa120\f0\fs21\
+JAR \u8212? archive Java produite par Maven.\par
+
+\pard\sa120\f0\fs21\
+SAST \u8212? analyse statique du code source; SonarQube joue ici le r\u244?le d\u8217?analyse de qualit\u233?/s\u233?curit\u233? configur\u233?e.\par
+
+\pard\sa120\f0\fs21\
+SCA \u8212? examen des biblioth\u232?ques/composants logiciels; Trivy examine notamment les images.\par
+
+\pard\sa120\f0\fs21\
+Image/conteneur \u8212? mod\u232?le de lancement / processus isol\u233? cr\u233?\u233? \u224? partir de ce mod\u232?le.\par
+
+\pard\sa120\f0\fs21\
+Healthcheck/readiness \u8212? signal de sant\u233? technique et de capacit\u233? \u224? recevoir du trafic.\par
+
+\pard\sa120\f0\fs21\
+STRIDE \u8212? cat\u233?gories de menaces : usurpation, alt\u233?ration, r\u233?pudiation, divulgation, d\u233?ni de service et \u233?l\u233?vation de privil\u232?ges.\par
+
+\pard\sb360\sa160\keepn\b\cf1\fs28\
+Conclusion\par
+
+\pard\sa120\f0\fs21\
+Le d\u233?p\u244?t relie une petite application Spring Boot/MySQL \u224? une interface Nginx et \u224? une cha\u238?ne Jenkins qui teste, analyse, construit, d\u233?ploie, observe et archive les preuves. Les fichiers sources d\u233?finissent le comportement; les rapports en sont les traces d\u8217?ex\u233?cution. La dashboard est utile lorsque chaque carte est li\u233?e \u224? la sortie de l\u8217?outil correspondant et au build concern\u233?. Le projet reste un laboratoire p\u233?dagogique : ses param\u232?tres, ses privil\u232?ges d\u8217?infrastructure et ses contr\u244?les doivent \u234?tre renforc\u233?s avant tout usage de production.\par
+
+}

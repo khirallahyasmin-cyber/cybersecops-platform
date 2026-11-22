@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rapport technique — devops-platform</title>
+<style>
+body{max-width:900px;margin:3rem auto;padding:0 1.5rem;color:#202a35;font:16px/1.65 "Segoe UI",Arial,sans-serif}
+h1,h2,h3{color:#17365d;line-height:1.25}h1{margin-top:3rem;font-size:2rem}h2{margin-top:2.3rem;border-bottom:1px solid #d7e2f0;padding-bottom:.35rem}
+h3{margin-top:1.6rem}p{margin:.7rem 0}.bullet{margin-left:1.5rem;text-indent:-1rem}
+pre{overflow-x:auto;background:#f3f5f8;padding:.8rem 1rem;border-left:3px solid #4472c4;white-space:pre-wrap;font:14px/1.5 Consolas,monospace}
+.page-break{border-top:2px solid #d7e2f0;margin:2rem 0}@media print{body{max-width:none;margin:1.5cm}h2,h3{break-after:avoid}pre{break-inside:avoid}}
+</style></head><body><h1>Rapport technique — réalisation et fonctionnement du projet DevOps/DevSecOps</h1>
+<p>Explication de l’architecture, des fichiers, des classes, des contrôles et du flux d’exécution</p>
+<p>Projet : devops-platform — catalogue de produits et chaîne DevSecOps</p>
+<p>Langue : français | Format : document Microsoft Word (.docx)</p>
+<p>Périmètre : sources et configuration présentes dans le dépôt au moment de la rédaction</p>
+<div class="page-break"></div>
+<h2>Comment lire ce rapport</h2>
+<p>Ce document décrit les responsabilités et les interactions des fichiers, classes et principales fonctions du projet. Il explique les éléments de code par unité logique (classe, fonction, script ou configuration) : il ne traduit pas chaque mot-clé du langage Java ou Python, qui est expliqué par son contexte. Les chemins cités sont relatifs à la racine du dépôt.</p>
+<p>Les secrets locaux, notamment le contenu du fichier .env, ne sont ni lus ni reproduits. Les rapports générés, caches, dépendances téléchargées et fichiers compilés sont des résultats d’exécution, pas des sources à maintenir. Le répertoire security-fixtures contient les dossiers iac et sca, mais aucun fichier de fixture n’a été inventorié.</p>
+<p>Le projet est un laboratoire local d’apprentissage et d’intégration continue. Il ne doit pas être exposé comme une application de production sans authentification, TLS, gestion de privilèges et durcissement complémentaires.</p>
+<h2>Sommaire</h2>
+<p>1. Objectif et vue d’ensemble</p>
+<p>2. Architecture et parcours d’une requête</p>
+<p>3. Démarrer, vérifier et arrêter le projet</p>
+<p>4. Backend Java : fichiers, classes et API</p>
+<p>5. Frontend et proxy HTTP</p>
+<p>6. Docker Compose et configuration des services</p>
+<p>7. Jenkins : déroulement réel du pipeline</p>
+<p>8. Contrôles, rapports et dashboard DevSecOps</p>
+<p>9. Tests, résultats et limites</p>
+<p>10. Inventaire raisonné des fichiers</p>
+<p>11. Glossaire</p>
+<h2>1. Objectif et vue d’ensemble</h2>
+<p>devops-platform réunit une application de catalogue CRUD et un laboratoire qui automatise sa construction, ses tests, ses analyses de sécurité, son déploiement local et son observation. Le catalogue est le sujet applicatif; Jenkins, SonarQube, Trivy, OWASP ZAP, Nexus, Prometheus et Grafana constituent les outils de livraison et de contrôle.</p>
+<p>Le parcours général est le suivant : le développeur prépare des fichiers avec pre-commit et Gitleaks, valide le message de commit avec Commitizen, puis Jenkins récupère les sources. Maven compile et teste l’API. SonarQube, Trivy et l’analyse IaC vérifient différents périmètres. Docker construit les images, Compose déploie l’application, des contrôles HTTP/runtime vérifient le résultat, Prometheus collecte les métriques, ZAP effectue un scan passif et le script de rapport rassemble les preuves.</p>
+<p>La page HTML de DevSecOps n’invente pas de résultats : elle agrège les statuts enregistrés par le pipeline et les fichiers produits par les outils. « Étape passée » signifie que le critère d’exécution a été satisfait; cela ne signifie pas nécessairement « aucune alerte ». Une étape absente ou sans rapport ne constitue pas une preuve de sécurité.</p>
+<h2>2. Architecture et parcours d’une requête</h2>
+<p>Composants principaux :</p>
+<p class="bullet">• Navigateur → frontend Nginx sur localhost:8081.</p>
+<p class="bullet">• Nginx sert frontend/index.html et relaie /api/ vers le backend Spring Boot.</p>
+<p class="bullet">• Backend sur localhost:8080 → MySQL sur le réseau privé Compose.</p>
+<p class="bullet">• Jenkins (localhost:8083) orchestre les étapes et utilise les conteneurs Docker.</p>
+<p class="bullet">• SonarQube (9000) analyse le code; Nexus (8082) peut héberger l’artefact Maven.</p>
+<p class="bullet">• Prometheus (9090) collecte /actuator/prometheus; Grafana (3000) utilise Prometheus comme datasource.</p>
+<p>Une lecture de produit suit ce trajet : le navigateur envoie GET /api/products à Nginx; le bloc location /api/ de frontend/nginx.conf transmet la requête à http://backend:8080/api/; ProductController appelle ProductService; le service délègue la requête SQL au ProductRepository; JdbcTemplate utilise la connexion configurée vers MySQL; le résultat remonte sous forme de Product sérialisé en JSON. La base et le backend communiquent par nom de service sur le réseau Docker, sans publier MySQL sur le port hôte.</p>
+<p>Les contrôles ont des périmètres différents. JUnit vérifie le comportement du backend; SonarQube examine le code Java; Trivy examine les images et la configuration selon les commandes du pipeline; ZAP observe les réponses HTTP de l’API en fonctionnement; les scripts Python vérifient Compose, l’état des conteneurs, l’API et la supervision. Aucun de ces outils, pris seul, ne prouve l’absence de vulnérabilité.</p>
+<h2>3. Démarrer, vérifier et arrêter le projet</h2>
+<p>Prérequis documentés : Ubuntu sous WSL2, Java 17, Maven, Git, Docker Engine et Docker Compose v2. La pile complète (Jenkins, SonarQube, Nexus et supervision) est lourde; prévoir au moins 8 Go de mémoire pour le laboratoire, et davantage si tous les services fonctionnent en même temps.</p>
+<p>Depuis PowerShell, ouvrir Ubuntu :</p>
+<pre><code>wsl -d Ubuntu</code></pre>
+<p>Puis, dans le terminal Ubuntu :</p>
+<pre><code>cd &quot;/mnt/d/5NIDS/Labs Cybersecurity and Coding/DevOps_Project/devops-platform&quot;</code></pre>
+<pre><code>bash ./setup.sh --all</code></pre>
+<pre><code>bash ./status.sh</code></pre>
+<p>Profils disponibles : bash ./setup.sh démarre l’application et MySQL; --tools ajoute Jenkins, SonarQube et Nexus; --monitoring ajoute Prometheus et Grafana; --all active les deux profils. setup.sh vérifie Docker/Compose, crée .env à partir de .env.example s’il manque, valide la configuration Compose, construit et démarre les services en attendant leur disponibilité. Les valeurs par défaut sont réservées au développement local; remplacer les mots de passe avant tout usage partagé.</p>
+<p>Vérifications manuelles utiles :</p>
+<pre><code>curl --fail http://localhost:8080/api/health</code></pre>
+<pre><code>docker compose ps</code></pre>
+<pre><code>docker compose logs -f backend</code></pre>
+<p>Arrêt normal :</p>
+<pre><code>bash ./down.sh</code></pre>
+<p>down.sh arrête les profils Compose et conserve les volumes nommés. Cette conservation préserve les données de MySQL et des outils entre deux démarrages. La commande docker compose down -v supprime les volumes et les données persistantes : elle est destructive et ne doit être utilisée que si leur suppression est voulue.</p>
+<p>Pour tester seulement le backend, depuis backend/ :</p>
+<pre><code>mvn -B clean verify</code></pre>
+<p>Cette commande compile, lance les tests, exécute les phases Maven de vérification et produit les rapports de tests/couverture ainsi que le JAR dans backend/target/.</p>
+<h2>4. Backend Java : fichiers, classes et API</h2>
+<p>backend/pom.xml — Décrit Maven : coordonnées du projet, parent Spring Boot, Java 17, versions forcées de Jackson/Tomcat, dépendances web, Actuator, Micrometer Prometheus, validation, JDBC, connecteur MySQL, H2 et tests. Le plugin Spring Boot empaquette le JAR; JaCoCo prépare l’agent de couverture et produit son rapport à verify. distributionManagement indique le dépôt Nexus de releases utilisé lors d’une publication configurée.</p>
+<p>backend/Dockerfile — Construction en deux étapes. Maven/Temurin 17 compile le JAR; une image JRE plus petite exécute ensuite le paquet. curl sert aux healthchecks. L’utilisateur système app (UID 10001) exécute le processus au lieu de root.</p>
+<p>backend/src/main/java/com/example/devops/Application.java — Point d’entrée Spring Boot. main transmet Application.class à SpringApplication.run; l’annotation SpringBootApplication active la configuration automatique et la découverte des composants.</p>
+<p>ApiController.java — Expose GET /api/health et retourne un objet de statut de l’API, distinct des probes techniques /actuator/health.</p>
+<p>Product.java — Record Java représentant un produit en sortie : id, nom, description, prix décimal et stock. Le type BigDecimal évite les imprécisions binaires d’un float pour les montants.</p>
+<p>ProductRequest.java — Record de l’entrée JSON create/update. Les annotations de validation fixent des contraintes sur les champs; @Valid dans le contrôleur déclenche leur application avant le traitement métier.</p>
+<p>ProductController.java — Couche HTTP REST sous /api/products. findAll liste les produits; findById lit un identifiant; create valide la requête et renvoie le produit créé avec un statut de création; update modifie un produit; delete le supprime et renvoie une réponse sans corps. Cette classe traduit HTTP vers les appels de service et ne porte pas les requêtes SQL.</p>
+<p>ProductService.java — Couche métier entre contrôleur et repository. Elle centralise les opérations CRUD et transforme l’absence d’un produit lors d’une lecture/modification/suppression en ProductNotFoundException.</p>
+<p>ProductRepository.java — Accès aux données avec JdbcTemplate. Il exécute les lectures et écritures SQL et utilise des paramètres préparés pour les valeurs fournies par le client; celles-ci sont donc des données, pas du code SQL. update et delete communiquent l’absence de ligne au service via un résultat explicite.</p>
+<p>ProductNotFoundException.java — Exception métier spécialisée, créée à partir de l’identifiant absent; le handler commun la convertit en réponse HTTP cohérente.</p>
+<p>ApiExceptionHandler.java — Advice Spring global. Il transforme l’exception « produit absent » et les erreurs de validation des paramètres en réponses HTTP/JSON structurées au lieu de laisser apparaître une erreur interne générique.</p>
+<p>SecurityHeadersFilter.java — Filtre HTTP qui ajoute les en-têtes de sécurité configurés pour les réponses normales. Il agit transversalement sur la réponse, sans obliger chaque méthode du contrôleur à répéter ces en-têtes.</p>
+<p>SecurityDemoController.java — Endpoints de test explicitement activés par configuration. weakHash démontre un usage faible de MD5 et une politique CORS permissive; weakHeaders présente une page de test où des en-têtes de protection navigateur sont volontairement absents/faibles. Cette surface est destinée à l’analyse locale ZAP, non à une utilisation métier. L’activation du mode démo doit rester contrôlée et la publication Docker est évitée quand ce mode est actif.</p>
+<p>backend/src/main/resources/application.properties — Configuration runtime Spring, datasource et Actuator. Les variables d’environnement fournies par Compose configurent la connexion MySQL; les endpoints health/readiness et prometheus permettent les probes et la collecte des métriques.</p>
+<p>backend/src/main/resources/schema.sql — DDL idempotent CREATE TABLE IF NOT EXISTS products : identifiant auto-incrémenté, nom, description, prix et stock. MySQL initialise le schéma au démarrage selon la configuration Spring.</p>
+<p>backend/src/test/resources/application-test.properties — Remplace la base runtime par H2 en mémoire et utilise le mode de compatibilité MySQL; les tests n’écrivent donc pas dans la base persistante du laboratoire.</p>
+<p>backend/src/test/java/com/example/devops/ProductControllerTest.java — Tests d’intégration MVC : endpoints de sécurité démo et headers; CRUD; rejet des données invalides et des identifiants inconnus; vérification qu’une entrée ressemblant à du SQL reste une donnée; présence d’un en-tête de protection; endpoint de métriques. Ils testent l’application HTTP dans un contexte isolé, et non les versions finales des images.</p>
+<p>Contrat API utile : GET /api/products (liste), GET /api/products/{id} (lecture), POST /api/products (création JSON), PUT /api/products/{id} (mise à jour), DELETE /api/products/{id} (suppression), GET /api/health (statut applicatif), GET /actuator/health et /actuator/prometheus (santé technique et métriques).</p>
+<h2>5. Frontend et proxy HTTP</h2>
+<p>frontend/index.html — Application navigateur sans framework : structure HTML, présentation et JavaScript de l’écran catalogue. Elle appelle l’API sous /api, ce qui lui permet de rester sur la même origine que Nginx; les fonctions de chargement et d’actions CRUD convertissent les réponses JSON en éléments affichés.</p>
+<p>frontend/nginx.conf — Écoute sur le port 8080 à l’intérieur du conteneur, sert les fichiers statiques et relaie /api/ au service backend. Les en-têtes Host et X-Real-IP sont transmis. Le port publié côté machine est 8081 et limité à l’interface loopback 127.0.0.1 dans Compose.</p>
+<p>frontend/Dockerfile — Part d’une image Nginx non privilégiée, met à jour ses paquets, copie la page et la configuration puis exécute Nginx sous l’utilisateur nginx. L’image expose le port interne 8080.</p>
+<h2>6. Docker Compose et configuration des services</h2>
+<p>docker-compose.yml — Source de vérité de l’environnement local. Il déclare MySQL, backend, frontend et les profils optionnels devops et monitoring. Les healthchecks imposent l’ordre de démarrage; les ports frontend/backend sont liés à 127.0.0.1; les réseaux Compose relient les services; les volumes nommés conservent les données. Le profil devops ajoute PostgreSQL/SonarQube, Nexus et Jenkins; monitoring ajoute Prometheus et Grafana. Jenkins accède au socket Docker pour construire/démarrer les conteneurs et monte le projet dans /workspace en lecture seule : c’est un privilège élevé, adapté au labo de confiance seulement.</p>
+<p>.env.example — Gabarit des paramètres locaux (ports, identifiants de développement, options des services); il sert à créer .env. Ses valeurs d’exemple ne sont pas des secrets sûrs. Le fichier .env local n’est pas décrit ni inclus dans ce rapport.</p>
+<p>.gitignore — Exclut le fichier .env et les sorties Maven target des commits.</p>
+<p>.dockerignore — Réduit le contexte de construction en excluant notamment .git, .env, target et README.</p>
+<p>.pre-commit-config.yaml — Déclare les hooks de pré-commit, notamment contrôles de format/fichiers, détection Gitleaks et validation du message Conventional Commits avec Commitizen selon le hook-stage concerné.</p>
+<p>pyproject.toml — Configure Commitizen avec l’adaptateur Conventional Commits; le commit attend une structure comprenant type, portée facultative et description.</p>
+<h2>7. Jenkins : déroulement réel du pipeline</h2>
+<p>Jenkinsfile — Pipeline déclaratif exécutable. Les paramètres définissent le mode source locale ou SCM, le message à valider, le mode démo de sécurité, Sonar, les publications Nexus/Docker et les notifications. Les identifiants sont attendus dans les Credentials Jenkins, pas codés dans le dépôt.</p>
+<p>Stages dans l’ordre :</p>
+<p>1. Declarative: Tool Install — vérifie Java, Maven, Git, pre-commit, Trivy, Docker/Compose, curl et Python.</p>
+<p>2. Getting Project from Git — copie le dossier /workspace en mode local, en excluant .env, .git, target et rapports; sinon checkout SCM.</p>
+<p>3. Initialize DevSecOps report — nettoie les preuves concernées puis initialise l’état du rapport.</p>
+<p>4. Pre-commit checks — exécute les hooks sur tous les fichiers et journalise le résultat.</p>
+<p>5. Gitleaks secrets scan — lance le hook dédié; conserve un résumé sans diffuser la sortie brute susceptible de révéler un secret.</p>
+<p>6. Commit message validation — valide COMMIT_MESSAGE en mode local ou le dernier message Git en mode SCM.</p>
+<p>7. Cleaning the project — nettoie le contexte et les artefacts précédents du backend.</p>
+<p>8. Artifact construction — construit le JAR Maven en exécutant le cycle de vérification configuré.</p>
+<p>9. Unit Tests — exécute les tests et garde le rapport JUnit comme preuve.</p>
+<p>10. Dependency update report — collecte/présente l’état du contrôle de mises à jour prévu par le pipeline.</p>
+<p>11. Infrastructure as Code scan — Trivy Config examine la configuration avec les sévérités HIGH et CRITICAL.</p>
+<p>12. Code Quality Check via SonarQube — optionnel, nécessite sonar-token; exécute l’analyse Maven et récupère les issues/hotspots.</p>
+<p>13. Building our images — construit les images backend et frontend.</p>
+<p>14. Resolved Compose and local safeguards — résout Compose puis vérifie privilèges, exposition réseau, paramètres et protections locales.</p>
+<p>15. Trivy vulnerability scan — analyse les images backend/frontend sur LOW à CRITICAL, sauvegarde le JSON et calcule les compteurs; les vulnérabilités HIGH/CRITICAL corrigibles sont la politique de blocage, avec poursuite contrôlée des autres scans pour recueillir les preuves.</p>
+<p>16. Publish to Nexus — publication Maven optionnelle, conditionnée à la configuration du serveur et de ses credentials.</p>
+<p>17. Publish Docker images — publication optionnelle avec credentials et chemin de dépôt Docker Hub; ne pas l’activer avec le mode sécurité démo.</p>
+<p>18. Deploy our image — démarre MySQL/backend/frontend, attend les probes et interroge health/products; vérifie aussi les routes démo si activées.</p>
+<p>19. Infrastructure runtime checks — inspecte santé, état, privilèges et utilisateur effectif des conteneurs.</p>
+<p>20. Post-deployment security smoke tests — contrôle les routes et protections de sécurité de l’API en fonctionnement.</p>
+<p>21. Controlled backend recovery test — redémarre le backend et vérifie son retour à l’état readiness.</p>
+<p>22. Continuous monitoring verification — démarre Prometheus/Grafana et vérifie cible Prometheus et endpoint de santé Grafana.</p>
+<p>23. ZAP DAST acceptance scan — lance ZAP Baseline passif sur la route démo, ou sur les produits si mode démo désactivé; produit HTML/JSON.</p>
+<p>24. Email verification — étape de notification conditionnée à l’adresse et à la configuration SMTP.</p>
+<p>Les blocs post enregistrent les résultats d’une étape en succès ou échec. La section post globale produit/présente les preuves disponibles et archive les rapports, y compris lorsque le pipeline échoue. L’archivage permet d’ouvrir le détail du scanner ayant émis un constat. « MEDIUM/LOW informatif » ne doit pas être confondu avec « scan absent ».</p>
+<p>jenkins/Dockerfile — Image personnalisée du contrôleur Jenkins et outils nécessaires aux étapes locales (Java/Maven, Git, Python, Docker client/Compose, Trivy, pré-commit et dépendances associées).</p>
+<p>jenkins/init.groovy.d/security.groovy — Au premier démarrage, configure un realm local, l’utilisateur admin fourni par variables d’environnement et une politique qui interdit la lecture anonyme; les variables doivent venir de la configuration locale/credentials.</p>
+<p>jenkins/init.groovy.d/zz-pipeline.groovy — Crée ou actualise le job devops-catalog depuis /workspace/Jenkinsfile; lève une erreur explicite si le fichier manque et peut planifier le premier build.</p>
+<h2>8. Contrôles, rapports et dashboard DevSecOps</h2>
+<p>devsecops_checks.py — Outil CLI de vérification :</p>
+<p class="bullet">• check normalise le statut, l’identifiant et le résumé d’un contrôle.</p>
+<p class="bullet">• inspect_compose_config examine la configuration résolue, l’exposition des ports, le mode privilégié, le réseau et la présence des protections.</p>
+<p class="bullet">• inspect_runtime vérifie conteneurs, healthchecks, utilisateur non-root du backend et durcissement attendu.</p>
+<p class="bullet">• fetch_json communique avec des endpoints HTTP JSON et signale les réponses/erreurs.</p>
+<p class="bullet">• inspect_monitoring attend les cibles Prometheus et Grafana.</p>
+<p class="bullet">• inspect_security_smoke vérifie les réponses HTTP et les headers de sécurité.</p>
+<p class="bullet">• write_report sérialise les résultats JSON; main choisit la sous-commande, collecte les données et retourne un code adapté au pipeline.</p>
+<p>devsecops_report.py — Fabrique le rapport de sécurité :</p>
+<p class="bullet">• STATUS_LABELS, PHASES et CONTROLS définissent vocabulaire, phases et contrôles réellement présentés; CONTROL_DESCRIPTIONS et REMEDIATIONS renseignent leur explication et les pistes de correction.</p>
+<p class="bullet">• now produit l’horodatage; public_build_url construit les liens destinés à l’utilisateur.</p>
+<p class="bullet">• load_results et write_results lisent/écrivent le document JSON de résultats.</p>
+<p class="bullet">• redact_sensitive_text masque les motifs sensibles avant affichage.</p>
+<p class="bullet">• initialize crée l’état initial; record ajoute un contrôle; record_check_report convertit un rapport de vérification en preuves.</p>
+<p class="bullet">• artifact_problem vérifie la présence et la lisibilité d’une preuve.</p>
+<p class="bullet">• item_artifacts, _has_artifact et _load_json_report rattachent les artefacts et parsènt les rapports JSON.</p>
+<p class="bullet">• control_evidence associe chaque contrôle aux éléments de preuve appropriés.</p>
+<p class="bullet">• _archived_artifact_url, safe_link, artifact_link et artifact_links produisent des liens prudents vers les artefacts.</p>
+<p class="bullet">• load_vulnerabilities extrait et normalise les constats des rapports réels des outils.</p>
+<p class="bullet">• generate compose le HTML et le CSS du dashboard; main expose les sous-commandes à Jenkins.</p>
+<p>sonarqube_report.py — Client SonarQube dédié. fetch_all parcourt toutes les pages API; download collecte issues et hotspots du projet puis les écrit en JSON; main valide les paramètres CLI. Le jeton est fourni par l’environnement Jenkins, non ajouté aux fichiers de sortie.</p>
+<p>Rapports générés sous reports/ — Les JSON Trivy, SonarQube, checks, résultats agrégés, logs pre-commit/Maven/ZAP et fichiers HTML/CSS sont des preuves par exécution. La phase initiale de Jenkins nettoie des fichiers ciblés pour éviter de confondre une nouvelle exécution avec un ancien build. Ne pas modifier ces résultats à la main pour représenter un scan.</p>
+<p>reports/report-views/ — Pages HTML d’affichage par outil (Commitizen, pre-commit, checks, Sonar, Trivy, ZAP) et feuille de style commune. Elles rendent navigables les preuves archivées.</p>
+<p>zap-reports/ — Espace de sorties ZAP local si une exécution y dépose des artefacts; distinguer ces sorties des sources et comparer toujours leur build/période de production.</p>
+<p>Les dossiers security-fixtures/iac et security-fixtures/sca existent, mais sont vides dans l’inventaire effectué; ils ne constituent donc pas un catalogue de résultats à intégrer au dashboard.</p>
+<h2>9. Tests, résultats et limites</h2>
+<p>Les tests Python sous tests/ couvrent les contrôles Compose/runtime/monitoring, la génération et l’intégrité des rapports, l’extraction SonarQube, et les cas historiques associés aux fixtures. Les tests emploient unittest, fichiers temporaires et mocks HTTP : ils vérifient la logique des scripts sans appeler les services externes à chaque cas.</p>
+<p>tests/test_devsecops_checks.py — Vérifie les protections Compose, l’échec en cas de conteneur privilégié ou port public, le runtime non-root/santé et la vérification Prometheus/Grafana.</p>
+<p>tests/test_devsecops_report.py — Vérifie l’état du rapport, les preuves liées aux artefacts, les findings et les liens/sorties HTML.</p>
+<p>tests/test_sonarqube_report.py — Vérifie la récupération paginée et les réponses API contrôlées du collecteur SonarQube.</p>
+<p>backend/src/test/.../ProductControllerTest.java couvre CRUD, validation, erreurs, SQL-like comme donnée, headers, métriques et mode de démo.</p>
+<p>Historique de validation rapporté dans le contexte de travail antérieur : Maven clean verify a réussi avec 7 tests Java; les tests Python ont réussi avec 26 cas; un build Jenkins #79 a été indiqué SUCCESS, avec constats ZAP MEDIUM/LOW et un finding Trivy MEDIUM sans HIGH/CRITICAL dans les images de ce build. Ces chiffres décrivent une exécution historique et son périmètre, pas un nouveau scan lancé pendant la création de ce document ni une garantie sur un futur commit. Relancer le pipeline pour obtenir une preuve courante.</p>
+<p>Limites connues à prendre en compte : aucune authentification métier de catalogue; HTTP local plutôt que TLS; accès Jenkins au socket Docker conférant un pouvoir élevé; valeurs d’exemple réservées à une machine locale; ZAP Baseline est passif; Trivy et SonarQube ont des périmètres/règles définis; données persistantes dépendantes des volumes Docker. Le mode de démonstration crée exprès des réponses faibles pour qu’un scanner les détecte; ne pas l’activer sur un système exposé ou lors d’une publication.</p>
+<h2>10. Inventaire raisonné des fichiers</h2>
+<p>Racine du projet :</p>
+<p class="bullet">• Jenkinsfile : pipeline CI/CD et règles de publication.</p>
+<p class="bullet">• docker-compose.yml : topologie, ports, profils, variables, santé et volumes.</p>
+<p class="bullet">• devsecops_checks.py, devsecops_report.py, sonarqube_report.py : contrôle, agrégation et collecte de rapports.</p>
+<p class="bullet">• setup.sh, up.sh, down.sh, status.sh : démarrage, état et arrêt local. setup.sh gère les profils; up.sh lance l’application de base; down.sh conserve les volumes; status.sh montre Compose et interroge l’API.</p>
+<p class="bullet">• .pre-commit-config.yaml et pyproject.toml : hooks de contrôle et configuration Commitizen.</p>
+<p class="bullet">• .gitignore, .dockerignore : exclusions Git et Docker.</p>
+<p class="bullet">• .env.example : modèle de variables locales; .env réel est volontairement exclu du présent document.</p>
+<p class="bullet">• README.md : démarrage rapide, prérequis, URLs et commandes.</p>
+<p class="bullet">• COURS-DEVOPS-DEBUTANT.md : cours structuré sur le cycle DevOps, les outils et l’exploitation.</p>
+<p class="bullet">• RAPPORT-FIN-ETUDES.md : rapport académique, architecture, mise en œuvre et limites.</p>
+<p class="bullet">• THREAT-MODEL.md : menaces STRIDE, frontière de confiance et mitigations du laboratoire.</p>
+<p class="bullet">• OFFLINE-PACKAGE.md : explique les limites de l’archive téléchargeable et pourquoi les images Docker ne sont pas incluses.</p>
+<p>backend/ :</p>
+<p class="bullet">• Dockerfile et pom.xml : construction multi-étapes, dépendances, tests, empaquetage et publication Maven.</p>
+<p class="bullet">• src/main/java/com/example/devops/ : Application, contrôleurs, DTO/modèle, service, repository, exceptions et filtre HTTP expliqués au chapitre 4.</p>
+<p class="bullet">• src/main/resources/application.properties : configuration d’exécution.</p>
+<p class="bullet">• src/main/resources/schema.sql : structure de la table products.</p>
+<p class="bullet">• src/test/java/.../ProductControllerTest.java : tests web d’intégration.</p>
+<p class="bullet">• src/test/resources/application-test.properties : datasource H2 isolé.</p>
+<p>frontend/ :</p>
+<p class="bullet">• Dockerfile : image Nginx non-root et fichiers distribués.</p>
+<p class="bullet">• index.html : interface cliente du catalogue.</p>
+<p class="bullet">• nginx.conf : serveur statique et reverse proxy API.</p>
+<p>jenkins/ :</p>
+<p class="bullet">• Dockerfile : contrôleur Jenkins préconfiguré avec les outils requis.</p>
+<p class="bullet">• init.groovy.d/security.groovy : authentification/autorisation initiales.</p>
+<p class="bullet">• init.groovy.d/zz-pipeline.groovy : création et mise à jour du job pipeline.</p>
+<p>monitoring/ :</p>
+<p class="bullet">• prometheus/Dockerfile : image/configuration de Prometheus.</p>
+<p class="bullet">• prometheus/prometheus.yml : fréquence et cible Actuator backend.</p>
+<p class="bullet">• grafana/Dockerfile : image/configuration Grafana.</p>
+<p class="bullet">• grafana/provisioning/datasources/prometheus.yml : datasource Prometheus déclarée automatiquement.</p>
+<p>tests/ :</p>
+<p class="bullet">• test_devsecops_checks.py, test_devsecops_report.py, test_sonarqube_report.py : tests unitaires des outils auxiliaires Python.</p>
+<p>Ne sont pas des sources à documenter comme du code métier : .env local, __pycache__, backend/target, les rapports/résultats d’exécution, images Docker et volumes. Ils sont soit locaux/sensibles, soit générés et reproductibles.</p>
+<h2>11. Glossaire</h2>
+<p>API — contrat HTTP/JSON utilisé par le navigateur et les autres clients.</p>
+<p>CI/CD — intégration continue puis livraison/déploiement automatisés.</p>
+<p>DAST — analyse d’une application en fonctionnement; ici le contrôle ZAP Baseline est passif.</p>
+<p>Finding — alerte ou constat issu d’un scanner.</p>
+<p>JAR — archive Java produite par Maven.</p>
+<p>SAST — analyse statique du code source; SonarQube joue ici le rôle d’analyse de qualité/sécurité configurée.</p>
+<p>SCA — examen des bibliothèques/composants logiciels; Trivy examine notamment les images.</p>
+<p>Image/conteneur — modèle de lancement / processus isolé créé à partir de ce modèle.</p>
+<p>Healthcheck/readiness — signal de santé technique et de capacité à recevoir du trafic.</p>
+<p>STRIDE — catégories de menaces : usurpation, altération, répudiation, divulgation, déni de service et élévation de privilèges.</p>
+<h2>Conclusion</h2>
+<p>Le dépôt relie une petite application Spring Boot/MySQL à une interface Nginx et à une chaîne Jenkins qui teste, analyse, construit, déploie, observe et archive les preuves. Les fichiers sources définissent le comportement; les rapports en sont les traces d’exécution. La dashboard est utile lorsque chaque carte est liée à la sortie de l’outil correspondant et au build concerné. Le projet reste un laboratoire pédagogique : ses paramètres, ses privilèges d’infrastructure et ses contrôles doivent être renforcés avant tout usage de production.</p></body></html>

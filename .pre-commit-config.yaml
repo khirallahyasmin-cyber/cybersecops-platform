@@ -1,0 +1,35 @@
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+default_stages:
+  - pre-commit
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^RAPPORT-EXPLICATION-PROJET\.(html|rtf)$
+      - id: end-of-file-fixer
+        exclude: ^RAPPORT-EXPLICATION-PROJET\.(html|rtf)$
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: commitizen
+        name: validate commit message (Conventional Commits)
+        entry: cz check --commit-msg-file
+        language: python
+        additional_dependencies:
+          - commitizen==4.8.3
+        stages:
+          - commit-msg

@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-07T21:59:28+00:00",
+  "results": [
+    {
+      "id": "precommit",
+      "phase": "Pré-commit",
+      "tool": "Hooks pre-commit",
+      "status": "passed",
+      "summary": "Tous les hooks pre-commit configures, y compris Gitleaks, ont passe.",
+      "command": "pre-commit run --all-files",
+      "artifact": "reports/pre-commit.log",
+      "output": "",
+      "checked_at": "2026-10-07T21:54:50+00:00",
+      "artifacts": [
+        "reports/pre-commit.log"
+      ]
+    },
+    {
+      "id": "gitleaks",
+      "phase": "Pré-commit",
+      "tool": "Gitleaks",
+      "status": "passed",
+      "summary": "Gitleaks na detecte aucun secret dans les fichiers suivis.",
+      "command": "pre-commit run gitleaks --all-files",
+      "artifact": "reports/gitleaks-summary.txt",
+      "output": "",
+      "checked_at": "2026-10-07T21:54:52+00:00",
+      "artifacts": [
+        "reports/gitleaks-summary.txt"
+      ]
+    },
+    {
+      "id": "secure-coding",
+      "phase": "Pré-commit",
+      "tool": "Standards de codage sécurisé",
+      "status": "passed",
+      "summary": "Les règles de sécurité du profil SonarQube ont été exécutées sur le code Java; consulter issues et hotspots.",
+      "command": "SonarQube security analysis",
+      "artifact": "reports/sonarqube-issues.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:56:02+00:00",
+      "artifacts": [
+        "reports/sonarqube-issues.json",
+        "reports/sonarqube-hotspots.json"
+      ]
+    },
+    {
+      "id": "commitizen",
+      "phase": "Commit (CI)",
+      "tool": "Commitizen",
+      "status": "passed",
+      "summary": "Le message soumis respecte Conventional Commits selon Commitizen.",
+      "command": "pre-commit run --hook-stage commit-msg --commit-msg-filename",
+      "artifact": "reports/commitizen.log",
+      "output": "",
+      "checked_at": "2026-10-07T21:54:53+00:00",
+      "artifacts": [
+        "reports/commitizen.log",
+        "reports/commit-message.txt"
+      ]
+    },
+    {
+      "id": "sonarqube",
+      "phase": "Commit (CI)",
+      "tool": "SonarQube (SAST)",
+      "status": "passed",
+      "summary": "Analyse SonarQube terminee; vulnerabilites et hotspots recuperes via lAPI.",
+      "command": "Maven SonarQube scanner + API issues/hotspots",
+      "artifact": "reports/sonarqube-issues.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:56:02+00:00",
+      "artifacts": [
+        "reports/sonarqube-issues.json",
+        "reports/sonarqube-hotspots.json"
+      ]
+    },
+    {
+      "id": "sca",
+      "phase": "Commit (CI)",
+      "tool": "Analyse SCA des dépendances",
+      "status": "passed",
+      "summary": "Trivy a analysé les composants Java embarqués dans les images backend/frontend; consulter les compteurs de sévérité et les rapports liés.",
+      "command": "trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed",
+      "artifact": "reports/trivy-backend.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:57:44+00:00",
+      "artifacts": [
+        "reports/trivy-backend.json",
+        "reports/trivy-frontend.json",
+        "reports/trivy-scan.log"
+      ]
+    },
+    {
+      "id": "maven-tests",
+      "phase": "Commit (CI)",
+      "tool": "Tests unitaires et sécurité Maven",
+      "status": "passed",
+      "summary": "Les tests unitaires et de securite Maven sont passes.",
+      "command": "mvn -B test jacoco:report",
+      "artifact": "reports/maven-tests.xml",
+      "output": "",
+      "checked_at": "2026-10-07T21:55:27+00:00",
+      "artifacts": [
+        "reports/maven-tests.xml"
+      ]
+    },
+    {
+      "id": "iac-analysis",
+      "phase": "Commit (CI)",
+      "tool": "Analyse IaC",
+      "status": "passed",
+      "summary": "Trivy Config a terminé l’analyse de la configuration réellement utilisée par le projet; les éventuels findings restent visibles dans le rapport et la dashboard.",
+      "command": "trivy config --severity HIGH,CRITICAL .",
+      "artifact": "reports/trivy-iac.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:55:41+00:00",
+      "artifacts": [
+        "reports/trivy-iac.json"
+      ]
+    },
+    {
+      "id": "dependency-management",
+      "phase": "Commit (CI)",
+      "tool": "Gestion des dépendances",
+      "status": "passed",
+      "summary": "Le rapport Maven Versions liste les dépendances ayant une mise à jour disponible; aucune mise à jour automatique n'est appliquée.",
+      "command": "mvn org.codehaus.mojo:versions-maven-plugin:2.18.0:display-dependency-updates",
+      "artifact": "reports/dependency-updates.log",
+      "output": "",
+      "checked_at": "2026-10-07T21:55:38+00:00",
+      "artifacts": [
+        "reports/dependency-updates.log"
+      ]
+    },
+    {
+      "id": "trivy",
+      "phase": "Commit (CI)",
+      "tool": "Trivy (sécurité des conteneurs)",
+      "status": "passed",
+      "summary": "Le scan Trivy des images backend et frontend s’est terminé; consulter les compteurs de sévérité et les rapports liés.",
+      "command": "trivy image --severity HIGH,CRITICAL --ignore-unfixed",
+      "artifact": "reports/trivy-backend.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:57:44+00:00",
+      "artifacts": [
+        "reports/trivy-backend.json",
+        "reports/trivy-frontend.json",
+        "reports/trivy-scan.log"
+      ]
+    },
+    {
+      "id": "acceptance-iac",
+      "phase": "Acceptation",
+      "tool": "Contrôle IaC",
+      "status": "passed",
+      "summary": "La configuration Compose résolue contient les services applicatifs requis.",
+      "command": "docker compose config --format json + local safety checks",
+      "artifact": "reports/configuration-checks.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:57:33+00:00",
+      "artifacts": [
+        "reports/configuration-checks.json"
+      ]
+    },
+    {
+      "id": "zap",
+      "phase": "Acceptation",
+      "tool": "Scan de sécurité — OWASP ZAP Baseline",
+      "status": "passed",
+      "summary": "OWASP ZAP Baseline a termine le scan passif du endpoint de démonstration.",
+      "command": "zap-baseline.py -t /api/security-demo/weak-hash -I",
+      "artifact": "reports/zap-report.html",
+      "output": "",
+      "checked_at": "2026-10-07T21:59:27+00:00",
+      "artifacts": [
+        "reports/zap-report.html",
+        "reports/zap-report.json"
+      ]
+    },
+    {
+      "id": "smoke-tests",
+      "phase": "Acceptation",
+      "tool": "Tests d'acceptation",
+      "status": "passed",
+      "summary": "Le healthcheck et la route des produits repondent apres deploiement.",
+      "command": "curl /api/health et /api/products",
+      "artifact": "reports/smoke-tests.log",
+      "output": "",
+      "checked_at": "2026-10-07T21:58:28+00:00",
+      "artifacts": [
+        "reports/smoke-tests.log"
+      ]
+    },
+    {
+      "id": "infrastructure-tests",
+      "phase": "Acceptation",
+      "tool": "Tests d'infrastructure",
+      "status": "passed",
+      "summary": "MySQL et backend sont healthy; frontend et les services applicatifs sont démarrés.",
+      "command": "docker compose ps + docker inspect",
+      "artifact": "reports/runtime-checks.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:58:29+00:00",
+      "artifacts": [
+        "reports/runtime-checks.json"
+      ]
+    },
+    {
+      "id": "infrastructure-compliance",
+      "phase": "Acceptation",
+      "tool": "Conformité infrastructure",
+      "status": "passed",
+      "summary": "Compose vérifié : pas de mode host ni de conteneur privilégié pour l'application, MySQL non publié sur l'hôte et politiques de redémarrage présentes.",
+      "command": "docker compose config --format json + local safety checks",
+      "artifact": "reports/configuration-checks.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:57:33+00:00",
+      "artifacts": [
+        "reports/configuration-checks.json"
+      ]
+    },
+    {
+      "id": "security-smoke-tests",
+      "phase": "Production",
+      "tool": "Security smoke tests",
+      "status": "passed",
+      "summary": "Les endpoints de santé et de produits répondent en HTTP 200 avec X-Content-Type-Options: nosniff.",
+      "command": "GET /api/health + GET /api/products + security headers",
+      "artifact": "reports/security-smoke-checks.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:58:30+00:00",
+      "artifacts": [
+        "reports/security-smoke-checks.json"
+      ]
+    },
+    {
+      "id": "configuration-safety",
+      "phase": "Production",
+      "tool": "Contrôles de configuration",
+      "status": "passed",
+      "summary": "Le fichier .env est ignoré par Git et exclu de l'archive locale Jenkins.",
+      "command": "docker compose config --format json + local safety checks",
+      "artifact": "reports/configuration-checks.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:57:33+00:00",
+      "artifacts": [
+        "reports/configuration-checks.json"
+      ]
+    },
+    {
+      "id": "secrets-management",
+      "phase": "Production",
+      "tool": "Gestion des secrets",
+      "status": "passed",
+      "summary": "Le .env est ignoré par Git et exclu de l'archive de sources; les credentials CI passent par withCredentials. Jenkins local a accès au montage du projet et doit rester de confiance; aucun coffre cloud n'est revendiqué.",
+      "command": "docker compose config --format json + local safety checks",
+      "artifact": "reports/configuration-checks.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:57:33+00:00",
+      "artifacts": [
+        "reports/configuration-checks.json"
+      ]
+    },
+    {
+      "id": "server-hardening",
+      "phase": "Production",
+      "tool": "Durcissement serveur",
+      "status": "passed",
+      "summary": "Backend exécuté sous l'identité non-root « app » et aucun service applicatif n'est privilégié.",
+      "command": "docker compose ps + docker inspect",
+      "artifact": "reports/runtime-checks.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:58:29+00:00",
+      "artifacts": [
+        "reports/runtime-checks.json"
+      ]
+    },
+    {
+      "id": "fault-injection",
+      "phase": "Opérations",
+      "tool": "Injection de pannes",
+      "status": "passed",
+      "summary": "Le redémarrage contrôlé du backend a été suivi d'un retour à l'état readiness.",
+      "command": "docker compose restart backend + readiness probe",
+      "artifact": "reports/fault-injection.log",
+      "output": "",
+      "checked_at": "2026-10-07T21:58:44+00:00",
+      "artifacts": [
+        "reports/fault-injection.log"
+      ]
+    },
+    {
+      "id": "continuous-scanning",
+      "phase": "Opérations",
+      "tool": "Scans continus",
+      "status": "passed",
+      "summary": "Les scans Trivy IaC et images se sont exécutés; consulter les métriques et rapports associés.",
+      "command": "Trivy config + image",
+      "artifact": "reports/trivy-iac.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:57:45+00:00",
+      "artifacts": [
+        "reports/trivy-iac.json",
+        "reports/trivy-backend.json",
+        "reports/trivy-frontend.json",
+        "reports/trivy-scan.log"
+      ]
+    },
+    {
+      "id": "continuous-monitoring",
+      "phase": "Opérations",
+      "tool": "Supervision continue",
+      "status": "passed",
+      "summary": "Prometheus collecte la cible backend et l'API de santé Grafana répond.",
+      "command": "Prometheus targets API + Grafana health API",
+      "artifact": "reports/monitoring-checks.json",
+      "output": "",
+      "checked_at": "2026-10-07T21:58:57+00:00",
+      "artifacts": [
+        "reports/monitoring-checks.json"
+      ]
+    }
+  ],
+  "pipeline": {
+    "build_number": "71",
+    "build_url": "http://localhost:8083/job/devops-catalog/71/",
+    "build_result": "SUCCESS"
+  }
+}

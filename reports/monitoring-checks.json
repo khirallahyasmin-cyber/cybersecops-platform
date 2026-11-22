@@ -1,0 +1,9 @@
+{
+  "checks": [
+    {
+      "id": "continuous-monitoring",
+      "status": "passed",
+      "summary": "Prometheus collecte la cible backend et l'API de santé Grafana répond."
+    }
+  ]
+}

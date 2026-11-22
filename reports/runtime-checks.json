@@ -1,0 +1,14 @@
+{
+  "checks": [
+    {
+      "id": "infrastructure-tests",
+      "status": "passed",
+      "summary": "MySQL et backend sont healthy; frontend et les services applicatifs sont démarrés."
+    },
+    {
+      "id": "server-hardening",
+      "status": "passed",
+      "summary": "Backend exécuté sous l'identité non-root « app » et aucun service applicatif n'est privilégié."
+    }
+  ]
+}

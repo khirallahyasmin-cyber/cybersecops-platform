@@ -1,0 +1,4 @@
+[WARNING] Unstaged files detected.
+[INFO] Stashing unstaged files to /var/jenkins_home/.cache/pre-commit/patch1791410092-1515.
+validate commit message (Conventional Commits)...........................Passed
+[INFO] Restored changes from /var/jenkins_home/.cache/pre-commit/patch1791410092-1515.
